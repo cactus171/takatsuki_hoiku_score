@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>高槻市 保育所点数シミュレーター</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <style>
+        select, input[type="number"] { margin-bottom: 1rem; }
+        optgroup { font-weight: bold; color: #0056b3; }
+        option { font-weight: normal; color: #333; }
+        .hidden { display: none; }
+        .score-box { background-color: #f0f8ff; padding: 1.5rem; border-radius: 8px; margin-top: 2rem; }
+        .breakdown-item { display: flex; justify-content: space-between; border-bottom: 1px dashed #ccc; padding: 0.25rem 0; }
+        .breakdown-total { display: flex; justify-content: space-between; font-weight: bold; font-size: 1.25rem; margin-top: 0.5rem; color: #d81b60;}
+    </style>
+</head>
+<body>
+    <main class="container">
+        <h2 style="margin-top: 2rem;">👶 高槻市 保育所点数シミュレーター</h2>
+        <p>現在の状況を選択して、入所判定の目安となる点数を計算します。</p>
+
+        <form id="scoreForm" onsubmit="event.preventDefault(); calculateScore();">
+            <h3 style="border-bottom: 2px solid #0056b3; padding-bottom: 0.5rem;">1. 基本要件</h3>
+            
+            <fieldset>
+                <legend><strong>世帯の状況</strong></legend>
+                <label><input type="radio" name="single_parent" value="no" checked> ふたり親世帯</label>
+                <label><input type="radio" name="single_parent" value="yes"> ひとり親世帯</label>
+            </fieldset>
+
+            <fieldset>
+                <legend><strong>保護者1（父または母）の状況</strong></legend>
+                <select id="parent1_score" required>
+                    <option value="" disabled selected>選択してください</option>
+                    <optgroup label="就労・就学（自営・職業訓練含む）">
+                        <option value="30,work">月160時間（週40時間）以上 : 30点</option>
+                        <option value="27,work">月140時間（週35時間）以上 : 27点</option>
+                        <option value="24,work">月120時間（週30時間）以上 : 24点</option>
+                        <option value="21,work">月96時間（週24時間）以上 : 21点</option>
+                        <option value="18,work">月64時間以上 ※週3日・4時間/日を満たす : 18点</option>
+                        <option value="16,work">月64時間以上 ※上記を満たさない : 16点</option>
+                    </optgroup>
+                    <optgroup label="内職">
+                        <option value="13,work">平均月収2万円以上 : 13点</option>
+                    </optgroup>
+                    <optgroup label="出産">
+                        <option value="18,other">産前6週（多胎14週）～産後8週 : 18点</option>
+                    </optgroup>
+                    <optgroup label="病気障害">
+                        <option value="30,other">保護者の入院 : 30点</option>
+                        <option value="24,other">自宅療養（常時安静） : 24点</option>
+                        <option value="18,other">自宅療養（軽度の家事） : 18点</option>
+                        <option value="33,other">視・聴・言語障害の手帳1・2級 / 精神手帳1級 : 33点</option>
+                        <option value="24,other">上記以外の身障手帳1・2級 / 療育手帳A / 精神手帳2級 : 24点</option>
+                        <option value="18,other">身障手帳3・4級 / 療育手帳B / 精神手帳3級 : 18点</option>
+                    </optgroup>
+                    <optgroup label="看護等">
+                        <option value="24,other">入院付き添い（常時介護） : 24点</option>
+                        <option value="18,other">入院付き添い（その他） : 18点</option>
+                        <option value="27,other">自宅介護（常時介護の付き添い） : 27点</option>
+                        <option value="18,other">自宅介護（その他） : 18点</option>
+                        <option value="30,other">通園 保護者同伴（※条件あり） : 30点</option>
+                        <option value="24,other">通園（その他） : 24点</option>
+                    </optgroup>
+                    <optgroup label="災害・求職中">
+                        <option value="30,other">災害（火災等による家屋損傷・復旧） : 30点</option>
+                        <option value="8,jobseek">求職中 : 8点</option>
+                    </optgroup>
+                </select>
+            </fieldset>
+
+            <fieldset id="parent2_area">
+                <legend><strong>保護者2（父または母）の状況</strong></legend>
+                <select id="parent2_score" required>
+                    <option value="" disabled selected>選択してください</option>
+                </select>
+            </fieldset>
+
+            <h3 style="border-bottom: 2px solid #0056b3; padding-bottom: 0.5rem; margin-top: 2rem;">2. 調整要件（加点ルール）</h3>
+
+            <fieldset id="living_apart_area">
+                <legend><strong>単身赴任ですか？</strong></legend>
+                <select id="living_apart">
+                    <option value="0">該当しない</option>
+                    <option value="3">国内で単身赴任している (+3点)</option>
+                    <option value="5">海外で単身赴任している (+5点)</option>
+                </select>
+            </fieldset>
+
+            <fieldset id="welfare_area" class="hidden">
+                <legend><strong id="welfare_label">生活保護受給世帯が就労・就学・求職の要件で申し込む場合</strong></legend>
+                <label><input type="checkbox" id="is_welfare"> 該当する</label>
+            </fieldset>
+
+            <fieldset id="income_area">
+                <legend><strong>世帯の合計所得（入所時点の住民税課税情報基準）</strong></legend>
+                <select id="income_score">
+                    <option value="0">266万円より多い、または不明 (+0点)</option>
+                    <option value="2">266万円以下 (+2点)</option>
+                    <option value="4">192万円以下 (+4点)</option>
+                </select>
+            </fieldset>
+
+            <fieldset>
+                <legend><strong>今時点で保護者全員が育休中ですか？</strong></legend>
+                <label><input type="radio" name="all_leave" value="no" checked> いいえ</label>
+                <label><input type="radio" name="all_leave" value="yes"> はい（全員育休中）</label>
+            </fieldset>
+
+            <div id="leave_yes_area" class="hidden" style="margin-left: 1.5rem; border-left: 3px solid #ccc; padding-left: 1rem;">
+                <fieldset>
+                    <legend><strong>保育所入所に伴い、保護者全員が職場復帰しますか？</strong></legend>
+                    <label><input type="radio" name="will_return" value="no" checked> いいえ</label>
+                    <label><input type="radio" name="will_return" value="yes"> はい（全員復帰する）</label>
+                </fieldset>
+                <fieldset id="class_age_area" class="hidden">
+                    <legend><strong>入所するクラス年齢は？</strong></legend>
+                    <select id="class_age">
+                        <option value="0">0歳児クラス (+0点)</option>
+                        <option value="1">1歳児クラス (+2点)</option>
+                        <option value="2">2歳児クラス (+4点)</option>
+                        <option value="3">3歳児クラス (+6点)</option>
+                        <option value="4">4歳児クラス (+8点)</option>
+                        <option value="5">5歳児クラス (+10点)</option>
+                    </select>
+                </fieldset>
+            </div>
+
+            <div id="leave_no_area" style="margin-left: 1.5rem; border-left: 3px solid #ccc; padding-left: 1rem;">
+                <fieldset>
+                    <legend><strong>一時預かりを利用していますか？</strong></legend>
+                    <select id="temp_care">
+                        <option value="0">利用していない</option>
+                        <option value="2">1日4時間以上、週1日～週3日利用 (+2点)</option>
+                        <option value="4">1日4時間以上、週4日以上利用 (+4点)</option>
+                    </select>
+                </fieldset>
+                <fieldset>
+                    <legend><strong>待機児童となってからの年数</strong></legend>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <input type="number" id="wait_years" value="0" min="0" max="5" style="width: 100px; margin: 0;"> 年 (1年につき+2点)
+                    </div>
+                </fieldset>
+            </div>
+
+            <fieldset id="fired_area" class="hidden">
+                <legend><strong>生計中心者の解雇等により、就労の必要性が高いですか？</strong></legend>
+                <label><input type="checkbox" id="is_fired"> はい（解雇等された） (+10点)</label>
+            </fieldset>
+
+            <fieldset>
+                <legend><strong>障がい・手当等について</strong></legend>
+                <label><input type="checkbox" id="child_disability"> 申込児童が障がい者手帳を有している、又は特別児童扶養手当を受給している (+4点)</label>
+                <label><input type="checkbox" id="family_disability"> 申込児童の兄弟姉妹等（その他の世帯員）が上記に該当する (+3点)</label>
+            </fieldset>
+
+            <fieldset>
+                <legend><strong>兄弟姉妹の状況（同時申込・在籍）</strong></legend>
+                <label><input type="checkbox" id="sibling_1st_choice"> 入所選考対象月時点で、兄弟姉妹が現在「第1希望の保育施設」に在籍している (+3点)</label>
+                <br>
+                <label>多胎児（双子等）が同時に申込をする人数:</label>
+                <select id="twins_count">
+                    <option value="0">該当しない</option>
+                    <option value="2">2人（双子）同時 (+3点)</option>
+                    <option value="3">3人（三つ子）同時 (+4点)</option>
+                </select>
+                
+                <label>多胎児以外の兄弟姉妹が同時に申込をする人数:</label>
+                <select id="siblings_count">
+                    <option value="0">該当しない</option>
+                    <option value="2">2人同時 (+2点)</option>
+                    <option value="3">3人同時 (+3点)</option>
+                    <option value="4">4人同時 (+4点)</option>
+                </select>
+            </fieldset>
+
+            <fieldset>
+                <legend><strong>卒園・進級の特例（該当するものがあればチェック）</strong></legend>
+                <label><input type="checkbox" id="facility_150"> 1号認定こどもとして既に在園しており、同一施設の2号を希望する (+150点)</label>
+                <label><input type="checkbox" id="facility_100"> 地域型保育事業の卒園児童が、当該連携施設を希望する (+100点)</label>
+                <label><input type="checkbox" id="facility_8"> 市内の小規模/事業所内保育の卒園児童が、保育所等を希望する (+8点)</label>
+            </fieldset>
+
+            <button type="submit" style="margin-top: 1.5rem;">点数を計算する</button>
+        </form>
+
+        <article id="result_area" class="score-box hidden">
+            <h3 style="margin-bottom: 1rem; text-align: center;">📊 判定シミュレーション結果</h3>
+            <div id="score_breakdown"></div>
+        </article>
+
+        <p style="margin-top: 2rem; color: #666; text-align: center;">
+            <small>※本ツールは目安を計算する非公式シミュレーターです。シンプルにするため稀な例外ケース等は省いており、計算結果について一切の責任を負いません。正確な点数は必ず高槻市の最新の入所案内（PDF）および窓口にてご確認ください。</small>
+        </p>
+    </main>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const p1Select = document.getElementById('parent1_score');
+            const p2Select = document.getElementById('parent2_score');
+            p2Select.innerHTML = p1Select.innerHTML;
+
+            document.getElementById('scoreForm').addEventListener('change', updateUI);
+            updateUI(); // 初期化
+        });
+
+        function updateUI() {
+            const isSingle = document.querySelector('input[name="single_parent"]:checked').value === 'yes';
+            const p1Val = document.getElementById('parent1_score').value;
+            const p2Val = document.getElementById('parent2_score').value;
+            
+            const p1Cat = p1Val ? p1Val.split(',')[1] : '';
+            const p2Cat = p2Val ? p2Val.split(',')[1] : '';
+
+            // 保護者2エリア
+            const parent2Area = document.getElementById('parent2_area');
+            const parent2Select = document.getElementById('parent2_score');
+            if (isSingle) {
+                parent2Area.classList.add('hidden');
+                parent2Select.required = false;
+            } else {
+                parent2Area.classList.remove('hidden');
+                parent2Select.required = true;
+            }
+
+            // 単身赴任（ふたり親のみ）
+            document.getElementById('living_apart_area').style.display = isSingle ? 'none' : 'block';
+
+            // 生活保護（就労・就学・求職のみ表示）
+            const isWorkOrJobseek = (p1Cat === 'work' || p1Cat === 'jobseek') || (!isSingle && (p2Cat === 'work' || p2Cat === 'jobseek'));
+            document.getElementById('welfare_area').style.display = isWorkOrJobseek ? 'block' : 'none';
+            document.getElementById('welfare_label').innerText = isSingle ? '生活保護受給世帯が就労・就学・求職の要件で申し込む場合（ひとり親: +40点）' : '生活保護受給世帯が就労・就学・求職の要件で申し込む場合（+10点）';
+
+            // ★生活保護にチェックが入っていたら所得エリアを非表示にする
+            const isWelfareChecked = document.getElementById('is_welfare').checked;
+            const incomeArea = document.getElementById('income_area');
+            if (isWorkOrJobseek && isWelfareChecked) {
+                incomeArea.style.display = 'none';
+                document.getElementById('income_score').value = "0"; // 非表示の時は0点リセット
+            } else {
+                incomeArea.style.display = 'block';
+            }
+
+            // 育休分岐
+            const isAllLeave = document.querySelector('input[name="all_leave"]:checked').value === 'yes';
+            document.getElementById('leave_yes_area').style.display = isAllLeave ? 'block' : 'none';
+            document.getElementById('leave_no_area').style.display = !isAllLeave ? 'block' : 'none';
+
+            // 育休復帰・クラス年齢
+            const willReturn = document.querySelector('input[name="will_return"]:checked').value === 'yes';
+            document.getElementById('class_age_area').style.display = (isAllLeave && willReturn) ? 'block' : 'none';
+
+            // 解雇（求職中のみ）
+            const isJobseek = p1Cat === 'jobseek' || (!isSingle && p2Cat === 'jobseek');
+            document.getElementById('fired_area').style.display = isJobseek ? 'block' : 'none';
+        }
+
+        function addRow(label, score) {
+            if (score === 0) return '';
+            const sign = score > 0 ? '+' : '';
+            return `<div class="breakdown-item"><span>${label}</span><span>${sign}${score}点</span></div>`;
+        }
+
+        function calculateScore() {
+            const isSingle = document.querySelector('input[name="single_parent"]:checked').value === 'yes';
+            const p1Val = document.getElementById('parent1_score').value;
+            const p2Val = document.getElementById('parent2_score').value;
+
+            if (!p1Val || (!isSingle && !p2Val)) {
+                alert("保護者の状況を正しく選択してください。");
+                return;
+            }
+
+            const p1Score = parseInt(p1Val.split(',')[0]);
+            const p1Cat = p1Val.split(',')[1];
+            
+            let total = 0;
+            let breakdownHtml = "";
+
+            // --- 1. 基本要件 ---
+            if (isSingle) {
+                const singleBonus = (p1Cat === 'other') ? 33 : 35;
+                total = p1Score + singleBonus;
+                breakdownHtml += addRow('保護者1 基本点', p1Score);
+                breakdownHtml += addRow('ひとり親加点', singleBonus);
+            } else {
+                const p2Score = parseInt(p2Val.split(',')[0]);
+                total = p1Score + p2Score;
+                breakdownHtml += addRow('保護者1 基本点', p1Score);
+                breakdownHtml += addRow('保護者2 基本点', p2Score);
+            }
+
+            // --- 2. 調整要件（加点） ---
+            
+            if (!isSingle) {
+                const livingApartScore = parseInt(document.getElementById('living_apart').value);
+                total += livingApartScore;
+                breakdownHtml += addRow('単身赴任加点', livingApartScore);
+            }
+
+            const p2Cat = isSingle ? '' : p2Val.split(',')[1];
+            const isWorkOrJobseek = (p1Cat === 'work' || p1Cat === 'jobseek') || (!isSingle && (p2Cat === 'work' || p2Cat === 'jobseek'));
+            const isWelfareChecked = document.getElementById('is_welfare').checked;
+
+            if (isWorkOrJobseek && isWelfareChecked) {
+                const welfareScore = isSingle ? 40 : 10;
+                total += welfareScore;
+                breakdownHtml += addRow('生活保護受給加点', welfareScore);
+            } else {
+                // ★生活保護ではない場合のみ所得加点を計算する
+                const incomeScore = parseInt(document.getElementById('income_score').value);
+                total += incomeScore;
+                breakdownHtml += addRow('世帯所得による加点', incomeScore);
+            }
+
+            const isAllLeave = document.querySelector('input[name="all_leave"]:checked').value === 'yes';
+            if (isAllLeave) {
+                const willReturn = document.querySelector('input[name="will_return"]:checked').value === 'yes';
+                if (willReturn) {
+                    const classAgeScore = parseInt(document.getElementById('class_age').value) * 2;
+                    total += classAgeScore;
+                    breakdownHtml += addRow('育休復帰加点（クラス年齢×2）', classAgeScore);
+                }
+            } else {
+                const tempCareScore = parseInt(document.getElementById('temp_care').value);
+                total += tempCareScore;
+                breakdownHtml += addRow('一時預かり利用加点', tempCareScore);
+
+                const waitYears = parseInt(document.getElementById('wait_years').value) || 0;
+                const waitScore = waitYears * 2;
+                total += waitScore;
+                breakdownHtml += addRow('待機児童年数加点', waitScore);
+            }
+
+            const isJobseek = p1Cat === 'jobseek' || (!isSingle && p2Cat === 'jobseek');
+            if (isJobseek && document.getElementById('is_fired').checked) {
+                total += 10;
+                breakdownHtml += addRow('生計中心者の解雇等加点', 10);
+            }
+
+            if (document.getElementById('child_disability').checked) {
+                total += 4;
+                breakdownHtml += addRow('申込児童の障がい等加点', 4);
+            }
+            if (document.getElementById('family_disability').checked) {
+                total += 3;
+                breakdownHtml += addRow('世帯員（兄弟等）の障がい等加点', 3);
+            }
+
+            if (document.getElementById('sibling_1st_choice').checked) {
+                total += 3;
+                breakdownHtml += addRow('兄弟が第1希望に在籍', 3);
+            }
+
+            const twinsCount = parseInt(document.getElementById('twins_count').value);
+            if (twinsCount >= 2) {
+                const twinsScore = 3 + (twinsCount - 2);
+                total += twinsScore;
+                breakdownHtml += addRow('多胎児の同時申込', twinsScore);
+            }
+
+            const siblingsCount = parseInt(document.getElementById('siblings_count').value);
+            if (siblingsCount >= 2) {
+                const siblingsScore = 2 + (siblingsCount - 2);
+                total += siblingsScore;
+                breakdownHtml += addRow('兄弟姉妹の同時申込', siblingsScore);
+            }
+
+            if (document.getElementById('facility_150').checked) {
+                total += 150;
+                breakdownHtml += addRow('1号認定からの2号希望特例', 150);
+            }
+            if (document.getElementById('facility_100').checked) {
+                total += 100;
+                breakdownHtml += addRow('地域型連携施設希望特例', 100);
+            }
+            if (document.getElementById('facility_8').checked) {
+                total += 8;
+                breakdownHtml += addRow('小規模等卒園者の希望特例', 8);
+            }
+
+            breakdownHtml += `<div class="breakdown-total"><span>総合計</span><span>${total}点</span></div>`;
+            document.getElementById('score_breakdown').innerHTML = breakdownHtml;
+            
+            const resultArea = document.getElementById('result_area');
+            resultArea.classList.remove('hidden');
+            resultArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    </script>
+</body>
+</html>
