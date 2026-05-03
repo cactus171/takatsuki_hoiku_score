@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>高槻市 保育所点数シミュレーター</title>
+    <title>R8 高槻市 保育所点数シミュレーター</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
     <style>
         select, input[type="number"] { margin-bottom: 1rem; }
@@ -19,6 +19,7 @@
     <main class="container">
         <h2 style="margin-top: 2rem;">👶 高槻市 保育所点数シミュレーター</h2>
         <p>現在の状況を選択して、入所判定の目安となる点数を計算します。</p>
+        <p>R8バージョン。今年こども園落ちたので来年も更新するよ！</p>
 
         <form id="scoreForm" onsubmit="event.preventDefault(); calculateScore();">
             <h3 style="border-bottom: 2px solid #0056b3; padding-bottom: 0.5rem;">1. 基本要件</h3>
@@ -188,6 +189,31 @@
         <article id="result_area" class="score-box hidden">
             <h3 style="margin-bottom: 1rem; text-align: center;">📊 判定シミュレーション結果</h3>
             <div id="score_breakdown"></div>
+
+            <hr style="margin: 2rem 0;">
+            <h4 style="text-align: center;">🎒 使ってみてよかった子育てアイテム？</h4>
+            <p style="text-align: center; font-size: 0.9rem;">Amazon.co.jpアソシエイト</p>
+
+            <div class="grid">
+                <div style="text-align: center;">
+                    <a href="https://amzn.to/4t3WiWN" target="_blank" rel="noopener">
+                        <img src="https://m.media-amazon.com/images/I/61XQcnJJ8xL._AC_SL1500_.jpg" style="width: 80px; height: 80px; object-fit: contain;"><br>
+                        <small>やっすい単機能ミシン</small>
+                    </a>
+                </div>
+                <div style="text-align: center;">
+                    <a href="https://amzn.to/4cWkX9p" target="_blank" rel="noopener">
+                        <img src="https://m.media-amazon.com/images/I/61e1faQnDvL._AC_SL1000_.jpg" style="width: 80px; height: 80px; object-fit: contain;"><br>
+                        <small>鼻かめない子供用、めっちゃ取れる</small>
+                    </a>
+                </div>
+                <div style="text-align: center;">
+                    <a href="https://amzn.to/48ECPVc" target="_blank" rel="noopener">
+                        <img src="https://m.media-amazon.com/images/I/71UZMlFD1gL._AC_SL1500_.jpg" style="width: 80px; height: 80px; object-fit: contain;"><br>
+                        <small>パンくず、乾いた米粒、毎日クリーン</small>
+                    </a>
+                </div>
+            </div>
         </article>
 
         <p style="margin-top: 2rem; color: #666; text-align: center;">
