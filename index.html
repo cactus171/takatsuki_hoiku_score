@@ -283,6 +283,11 @@
             <h3 style="margin-bottom: 1rem; text-align: center;">📊 判定シミュレーション結果</h3>
             <div id="score_breakdown"></div>
 
+            <div style="display: flex; gap: 0.75rem; justify-content: center; margin-top: 1.5rem;">
+                <a id="share_line" href="#" target="_blank" rel="noopener" style="background: #06C755; color: #fff; padding: 0.6rem 1.2rem; border-radius: 6px; text-decoration: none; font-weight: bold;">LINEで送る</a>
+                <a id="share_x" href="#" target="_blank" rel="noopener" style="background: #000; color: #fff; padding: 0.6rem 1.2rem; border-radius: 6px; text-decoration: none; font-weight: bold;">Xでシェア</a>
+            </div>
+
             <hr style="margin: 2rem 0;">
             <h4 style="text-align: center;">🎒 使ってみてよかった子育てアイテム？</h4>
             <p style="text-align: center; font-size: 0.9rem;">Amazon.co.jpアソシエイト</p>
@@ -551,7 +556,12 @@
 
             breakdownHtml += `<div class="breakdown-total"><span>総合計</span><span>${total}点</span></div>`;
             document.getElementById('score_breakdown').innerHTML = breakdownHtml;
-            
+
+            const pageUrl = "https://takatsuki-hoiku-score.pages.dev/";
+            const shareText = `高槻市 保育所点数シミュレーターで計算したら ${total}点 でした！`;
+            document.getElementById('share_line').href = `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(pageUrl)}&text=${encodeURIComponent(shareText)}`;
+            document.getElementById('share_x').href = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(pageUrl)}`;
+
             const resultArea = document.getElementById('result_area');
             resultArea.classList.remove('hidden');
             resultArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
