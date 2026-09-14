@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>R8 高槻市 保育所点数シミュレーター</title>
+    <title>R9 高槻市 保育所点数シミュレーター</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
     <style>
         select, input[type="number"] { margin-bottom: 1rem; }
@@ -19,7 +19,7 @@
     <main class="container">
         <h2 style="margin-top: 2rem;">👶 高槻市 保育所点数シミュレーター</h2>
         <p>現在の状況を選択して、入所判定の目安となる点数を計算します。高槻市役所様是非公式ツールを作ってください。事前にやってもらってたら窓口混雑緩和しますよ。</p>
-        <p>R8バージョン。今年こども園落ちたので来年も更新するよ！</p>
+        <p>R9バージョン（令和9年度 高槻市基準に更新）。</p>
 
         <form id="scoreForm" onsubmit="event.preventDefault(); calculateScore();">
             <h3 style="border-bottom: 2px solid #0056b3; padding-bottom: 0.5rem;">1. 基本要件</h3>
@@ -126,6 +126,10 @@
                         <option value="5">5歳児クラス (+10点)</option>
                     </select>
                 </fieldset>
+                <fieldset>
+                    <legend><strong>育休延長の申立てについて</strong></legend>
+                    <label><input type="checkbox" id="leave_extension_petition"> 「育児休業等取得中の利用調整に関する申立書」を提出し、希望する施設に入所できない場合は育休延長を許容する (-100点)</label>
+                </fieldset>
             </div>
 
             <div id="leave_no_area" style="margin-left: 1.5rem; border-left: 3px solid #ccc; padding-left: 1rem;">
@@ -152,8 +156,12 @@
 
             <fieldset>
                 <legend><strong>障がい・手当等について</strong></legend>
-                <label><input type="checkbox" id="child_disability"> 申込児童が障がい者手帳を有している、又は特別児童扶養手当を受給している (+4点)</label>
-                <label><input type="checkbox" id="family_disability"> 申込児童の兄弟姉妹等（その他の世帯員）が上記に該当する (+3点)</label>
+                <label><input type="checkbox" id="child_disability"> 申込児童が、障がい者手帳を有している又は特別児童扶養手当を受給している (+4点)</label>
+            </fieldset>
+
+            <fieldset>
+                <legend><strong>里親について</strong></legend>
+                <label><input type="checkbox" id="foster_child"> 申込児童が里親によって養育されている（里親の実子を除く） (+3点)</label>
             </fieldset>
 
             <fieldset>
@@ -176,11 +184,62 @@
                 </select>
             </fieldset>
 
+            <h3 style="border-bottom: 2px solid #0056b3; padding-bottom: 0.5rem; margin-top: 2rem;">3. 退園・転園・辞退・滞納など（該当する場合のみ）</h3>
+
             <fieldset>
-                <legend><strong>卒園・進級の特例（該当するものがあればチェック）</strong></legend>
+                <legend><strong>産休・育休に伴う退園からの再申込ですか？</strong></legend>
+                <select id="withdrawal_reentry">
+                    <option value="none">該当しない</option>
+                    <option value="self">退園した児童本人が再入所申し込みする (+12点) ※原則雇用契約の継続必要</option>
+                    <option value="sibling">退園した児童の兄弟姉妹が申し込みする ※原則雇用契約の継続必要</option>
+                </select>
+                <div id="withdrawal_class_age_area" class="hidden">
+                    <label>入所するクラス年齢は？（兄弟姉妹加点は+3×クラス年齢）</label>
+                    <select id="withdrawal_class_age">
+                        <option value="0">0歳児クラス (+0点)</option>
+                        <option value="1">1歳児クラス (+3点)</option>
+                        <option value="2">2歳児クラス (+6点)</option>
+                        <option value="3">3歳児クラス (+9点)</option>
+                        <option value="4">4歳児クラス (+12点)</option>
+                        <option value="5">5歳児クラス (+15点)</option>
+                    </select>
+                </div>
+            </fieldset>
+
+            <fieldset>
+                <legend><strong>転所・転園希望ですか？（他市町村からの転入予定者を除く）</strong></legend>
+                <select id="transfer_status">
+                    <option value="0">該当しない</option>
+                    <option value="-6">認可保育所又は認可認定こども園等に入所中 (-6点)</option>
+                    <option value="-2">小規模保育事業・事業所内保育事業・高槻認定こども園分室（年度利用保育）等を利用中 (-2点)</option>
+                </select>
+            </fieldset>
+
+            <fieldset>
+                <legend><strong>入所内定の辞退・滞納について</strong></legend>
+                <label><input type="checkbox" id="offer_declined"> 当該年度中に、市内認可保育施設の入所内定を辞退したことがある（申請取下し再度新規申請した場合も含む） (-3点)</label>
+                <label><input type="checkbox" id="unpaid_fee"> 保育料等を3ヶ月分以上滞納している (-10点)</label>
+            </fieldset>
+
+            <h3 style="border-bottom: 2px solid #0056b3; padding-bottom: 0.5rem; margin-top: 2rem;">4. 卒園・進級・施設移行の特例（該当するものがあればチェック）</h3>
+            <fieldset>
                 <label><input type="checkbox" id="facility_150"> 1号認定こどもとして既に在園しており、同一施設の2号を希望する (+150点)</label>
-                <label><input type="checkbox" id="facility_100"> 地域型保育事業の卒園児童が、当該連携施設を希望する (+100点)</label>
+                <label><input type="checkbox" id="facility_100"> 地域型保育事業の卒園児童が、当該連携施設を希望する（当初1次選考の優先枠に限る） (+100点)</label>
                 <label><input type="checkbox" id="facility_8"> 市内の小規模/事業所内保育の卒園児童が、保育所等を希望する (+8点)</label>
+                <label><input type="checkbox" id="facility_transition"> 現在通っている施設が認定こども園・小規模保育事業所・事業所内保育事業所に移行予定で、引き続きその施設の利用を希望する (+8点)</label>
+                <label><input type="checkbox" id="facility_closure"> 現在通っている認可保育施設が移転・民営化・廃園を予定し、その対象児童である（公表後の入所者を除く） (+8点)</label>
+            </fieldset>
+
+            <h3 style="border-bottom: 2px solid #0056b3; padding-bottom: 0.5rem; margin-top: 2rem;">5. 保育士加点（該当する場合のみ）</h3>
+            <fieldset>
+                <legend><strong>保護者が保育士等の資格所持者で、週30時間以上勤務（予定含む）していますか？</strong></legend>
+                <select id="staff_bonus">
+                    <option value="0">該当しない</option>
+                    <option value="10">市内の2・3号認定子どもを受入れる認可保育施設等又は病児保育事業に勤務 (+10点)</option>
+                    <option value="3">市外の2・3号認定子どもを受入れる認可保育施設等又は病児保育事業に勤務 (+3点)</option>
+                    <option value="6">市内の幼稚園・企業主導型保育事業・高槻認定こども園分室等に勤務 (+6点)</option>
+                    <option value="1">市外の幼稚園又は企業主導型保育事業に勤務 (+1点)</option>
+                </select>
             </fieldset>
 
             <button type="submit" style="margin-top: 1.5rem;">点数を計算する</button>
@@ -280,6 +339,10 @@
             // 解雇（求職中のみ）
             const isJobseek = p1Cat === 'jobseek' || (!isSingle && p2Cat === 'jobseek');
             document.getElementById('fired_area').style.display = isJobseek ? 'block' : 'none';
+
+            // 産休・育休に伴う退園（兄弟姉妹の場合のみクラス年齢を表示）
+            const withdrawalReentry = document.getElementById('withdrawal_reentry').value;
+            document.getElementById('withdrawal_class_age_area').style.display = (withdrawalReentry === 'sibling') ? 'block' : 'none';
         }
 
         function addRow(label, score) {
@@ -369,9 +432,15 @@
                 total += 4;
                 breakdownHtml += addRow('申込児童の障がい等加点', 4);
             }
-            if (document.getElementById('family_disability').checked) {
+
+            if (document.getElementById('foster_child').checked) {
                 total += 3;
-                breakdownHtml += addRow('世帯員（兄弟等）の障がい等加点', 3);
+                breakdownHtml += addRow('里親加点', 3);
+            }
+
+            if (isAllLeave && document.getElementById('leave_extension_petition').checked) {
+                total -= 100;
+                breakdownHtml += addRow('育休延長申立てによる減点', -100);
             }
 
             if (document.getElementById('sibling_1st_choice').checked) {
@@ -404,6 +473,46 @@
             if (document.getElementById('facility_8').checked) {
                 total += 8;
                 breakdownHtml += addRow('小規模等卒園者の希望特例', 8);
+            }
+            if (document.getElementById('facility_transition').checked) {
+                total += 8;
+                breakdownHtml += addRow('施設移行予定・継続利用希望特例', 8);
+            }
+            if (document.getElementById('facility_closure').checked) {
+                total += 8;
+                breakdownHtml += addRow('移転・民営化・廃園対象特例', 8);
+            }
+
+            const staffBonus = parseInt(document.getElementById('staff_bonus').value);
+            if (staffBonus !== 0) {
+                total += staffBonus;
+                breakdownHtml += addRow('保育士加点', staffBonus);
+            }
+
+            // --- 3. 退園・転園・辞退・滞納など ---
+            const withdrawalReentry = document.getElementById('withdrawal_reentry').value;
+            if (withdrawalReentry === 'self') {
+                total += 12;
+                breakdownHtml += addRow('産休・育休退園からの本人再入所加点', 12);
+            } else if (withdrawalReentry === 'sibling') {
+                const withdrawalClassAgeScore = parseInt(document.getElementById('withdrawal_class_age').value) * 3;
+                total += withdrawalClassAgeScore;
+                breakdownHtml += addRow('産休・育休退園からの兄弟姉妹再申込加点（クラス年齢×3）', withdrawalClassAgeScore);
+            }
+
+            const transferStatus = parseInt(document.getElementById('transfer_status').value);
+            if (transferStatus !== 0) {
+                total += transferStatus;
+                breakdownHtml += addRow('転所・転園希望による減点', transferStatus);
+            }
+
+            if (document.getElementById('offer_declined').checked) {
+                total -= 3;
+                breakdownHtml += addRow('入所内定辞退による減点', -3);
+            }
+            if (document.getElementById('unpaid_fee').checked) {
+                total -= 10;
+                breakdownHtml += addRow('保育料等滞納による減点', -10);
             }
 
             breakdownHtml += `<div class="breakdown-total"><span>総合計</span><span>${total}点</span></div>`;
